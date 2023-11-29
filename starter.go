@@ -80,12 +80,6 @@ func main() {
 	flag.StringVar(&configFileName, "config", "config", "Use a different config file name")
 	flag.Parse()
 	App := new(Application)
-	App.Content = []KeyValue{
-		{Id: 0, Key: "aKey", Value: "aValue", Lines: 1},
-		{Id: 1, Key: "bKey", Value: "bValue", Lines: 1},
-		{Id: 2, Key: "cKey", Value: "cValue", Lines: 1},
-		{Id: 3, Key: "dKey", Value: "dValue\nwith\nmultiple\nlines", Lines: 4},
-	}
 	log.Println("Reading Configuration")
 	ConfigRead(configFileName, &App.Config)
 

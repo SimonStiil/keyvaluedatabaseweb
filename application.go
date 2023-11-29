@@ -9,7 +9,6 @@ import (
 
 type Application struct {
 	Config     ConfigType
-	Content    []KeyValue
 	KVDBClient *Client
 }
 
@@ -81,6 +80,7 @@ func (App *Application) RootController(w http.ResponseWriter, r *http.Request) {
 	kvlist := App.KVDBClient.GetList()
 	KeyValueList := App.convertList(kvlist)
 	w.WriteHeader(statuscode)
+	// https://pkg.go.dev/html/template
 	tmpl := template.Must(template.ParseFiles("index.html"))
 	tmpl.Execute(w, KeyValueList)
 }
