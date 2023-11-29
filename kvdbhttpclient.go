@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type KVPair struct {
@@ -32,7 +34,6 @@ func InitClient(config ConfigBackend) *Client {
 func (c *Client) GetList() []KVPair {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/system/fullList", nil)
-	log.Printf("%+v %+v", c.BackendConfig.Username, c.Password)
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -46,15 +47,102 @@ func (c *Client) GetList() []KVPair {
 			panic(err)
 		}
 		log.Printf("%+v %+v", resp, bodyText)
-	} else {
-		log.Printf("%+v", list)
 	}
 	return list
+}
+func (c *Client) Set(pair KVPair) bool {
+	client := &http.Client{}
+	marshalled, err := json.Marshal(pair)
+	if err != nil {
+		log.Printf("E impossible to marshall pair: %s", err)
+		return false
+	}
+	req, err := http.NewRequest("POST", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/", bytes.NewReader(marshalled))
+	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("E Client Set call failed: %s", err)
+	}
+	bodyText, err := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusCreated && strings.TrimSpace(string(bodyText)) == "OK" {
+		return true
+	}
+	log.Printf("%+v %+v", resp.StatusCode, bodyText)
+	return false
+}
+func (c *Client) Delete(key string) bool {
+	client := &http.Client{}
+	req, err := http.NewRequest("DELETE", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/"+key, nil)
+	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("E Client Delete call failed: %s", err)
+	}
+	bodyText, err := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusCreated && strings.TrimSpace(string(bodyText)) == "OK" {
+		return true
+	}
+	log.Printf("%+v %+v", resp.StatusCode, bodyText)
+	return false
+}
+func (c *Client) Roll(key string) bool {
+	client := &http.Client{}
+	method := "{\"type\": \"roll\"}"
+	req, err := http.NewRequest("UPDATE", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/"+key, bytes.NewReader([]byte(method)))
+	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("E Client Update(roll) call failed: %s", err)
+	}
+	var pair KVPair
+	err = json.NewDecoder(resp.Body).Decode(&pair)
+	if err != nil {
+		bodyText, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("E Client Update(roll) call failed: %s", err)
+		}
+		log.Printf("E Client Update(roll) call failed: %s", bodyText)
+		return false
+	}
+	if resp.StatusCode == http.StatusOK && key == pair.Key {
+		return true
+	} else {
+		log.Printf("%+v %+v", resp.StatusCode, pair)
+	}
+	return false
+}
+func (c *Client) Generate(key string) bool {
+	client := &http.Client{}
+	method := "{\"type\": \"generate\"}"
+	req, err := http.NewRequest("UPDATE", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/"+key, bytes.NewReader([]byte(method)))
+	req.Header.Set("Content-Type", "application/json")
+	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("E Client Update(generate) call failed: %s", err)
+	}
+	var pair KVPair
+	err = json.NewDecoder(resp.Body).Decode(&pair)
+	if err != nil {
+		bodyText, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("E Client Update(generate) call failed: %s", err)
+		}
+		log.Printf("E Client Update(generate) call failed: %s", bodyText)
+		return false
+	}
+	if resp.StatusCode == http.StatusOK && key == pair.Key {
+		return true
+	} else {
+		log.Printf("I %+v %+v", resp.StatusCode, pair)
+	}
+	return false
 }
 func (c *Client) GetHealth() bool {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/system/health", nil)
-	log.Printf("%+v %+v", c.BackendConfig.Username, c.Password)
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)
 	if err != nil {

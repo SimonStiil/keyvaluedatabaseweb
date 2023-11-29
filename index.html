@@ -22,37 +22,44 @@
 
     <div class="row mt-4 g-4">
         <div class="col-12">
-            <h1 class="mb-4">Film List</h1>
+            <h1 class="mb-4">KVDB List</h1>
 
             <table class="table" id="kv-list">
                 <thead>
-                    <tr>
-                        <th scope="col" style="text-align:center;">#</th>
-                        <th scope="col">Key</th>
-                        <th scope="col">Value</th>
-                        <th scope="col">-</th>
-                        <th scope="col">-</th>
-                    </tr>
+                    <form action="/" method="get">
+                        <tr>
+                            <th scope="col" style="text-align:center;">#</th>
+                            <th scope="col">Key</th>
+                            <th scope="col">Value</th>
+                            <th scope="col"></th>
+                            <th scope="col">
+                                <input type="submit" class="btn btn-primary btn-block" name="input" id="refresh" value="Refresh" /></th>
+                            <th scope="col"></th>
+                        </tr>
+                    </form>
                 </thead>
                 <tbody>
                     {{ range . }}
                     {{ block "kv-list-element" .}}
-                    <form action="/post-keyvalue" method="post">
+                    <form action="/" method="post">
                         <tr>
                             <th scope="row">
                                 <input type="text" name="id" id="id-input" class="form-control no-border" value="{{ .Id }}" maxlength="2" size="2" readonly/>
                             </th>
                             <td>
-                                <input type="text" name="key" id="key-input" class="form-control" value="{{ .Key }}" maxlength="50" size="50" />
+                                <input type="text" name="key" id="key-input" class="form-control" value="{{ .Key }}" maxlength="50" size="50" {{if eq .Key "counter"}}readonly{{ else }}{{end}}/>
                             </td>
                             <td>
-                                <textarea type="text" name="value" id="value-input" rows="{{ .Lines }}" cols="100" class="form-control" style="text-align:left">{{ .Value }}</textarea>
+                                <textarea type="text" name="value" id="value-input" rows="{{ .Lines }}" cols="100" class="form-control" style="text-align:left" {{if eq .Key "counter"}}readonly{{ else }}{{end}}>{{ .Value }}</textarea>
                             </td>
                             <td>
-                                <input type="submit" class="btn btn-primary" name="input" id="roll" value="Roll" />
+                                <input type="submit" class="btn btn-success btn-block" name="input" id="update" value="Update" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
                             </td>
                             <td>
-                                <input type="submit" class="btn btn-primary" name="input" id="delete" value="Delete" />
+                                <input type="submit" class="btn btn-primary btn-block" name="input" id="roll" value="Roll" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
+                            </td>
+                            <td>
+                                <input type="submit" class="btn btn-danger btn-block" name="input" id="delete" value="Delete" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
                             </td>
                         </tr>
                     </form>
@@ -60,7 +67,7 @@
                     {{ end }}
                 </tbody>
                 <tbody>
-                    <form action="/post-keyvalue" method="post">
+                    <form action="/" method="post">
                         <tr>
                             <th scope="row">
                                 <input type="text" name="id" id="id-input" class="form-control no-border" value="+" maxlength="2" size="2" readonly/>
@@ -72,10 +79,12 @@
                                 <textarea type="text" name="value" id="value-input" rows="1" cols="50" class="form-control" style="text-align:left"></textarea>
                             </td>
                             <td>
-                                <input type="submit" class="btn btn-primary" name="input" id="create" value="Create" />
+                                <input type="submit" class="btn btn-success btn-block" name="input" id="create" value="Create" />
                             </td>
                             <td>
-                                <input type="submit" class="btn btn-primary" name="input" id="generate" value="Generate" />
+                                <input type="submit" class="btn btn-primary btn-block" name="input" id="generate" value="Generate" />
+                            </td>
+                            <td>
                             </td>
                         </tr>
                     </form>

@@ -17,7 +17,7 @@ var (
 	requests       = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "http_endpoint_equests_count",
 		Help: "The amount of requests to an endpoint",
-	}, []string{"endpoint", "method"},
+	}, []string{"endpoint", "method", "type"},
 	)
 )
 
@@ -91,7 +91,6 @@ func main() {
 
 	httpClient := InitClient(App.Config.Backend)
 	httpClient.GetList()
-	httpClient.GetHealth()
 	App.KVDBClient = httpClient
 	if App.Config.Prometheus.Enabled {
 		log.Printf("Metrics enabled at %v\n", App.Config.Prometheus.Endpoint)
