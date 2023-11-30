@@ -8,17 +8,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/SimonStiil/keyvaluedatabase/rest"
 )
-
-type KVPair struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-}
-
-type ServerHealth struct {
-	Status   string `json:"status"`
-	Requests int    `json:"requests"`
-}
 
 type Client struct {
 	BackendConfig ConfigBackend
@@ -31,7 +23,7 @@ func InitClient(config ConfigBackend) *Client {
 	return httpClient
 }
 
-func (c *Client) GetList() []KVPair {
+func (c *Client) GetList() []rest.KVPairV1 {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/system/fullList", nil)
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
@@ -39,7 +31,7 @@ func (c *Client) GetList() []KVPair {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var list []KVPair
+	var list []rest.KVPairV1
 	err = json.NewDecoder(resp.Body).Decode(&list)
 	if err != nil {
 		bodyText, err := io.ReadAll(resp.Body)
@@ -50,7 +42,7 @@ func (c *Client) GetList() []KVPair {
 	}
 	return list
 }
-func (c *Client) Set(pair KVPair) bool {
+func (c *Client) Set(pair rest.KVPairV1) bool {
 	client := &http.Client{}
 	marshalled, err := json.Marshal(pair)
 	if err != nil {
@@ -96,7 +88,7 @@ func (c *Client) Roll(key string) bool {
 	if err != nil {
 		log.Printf("E Client Update(roll) call failed: %s", err)
 	}
-	var pair KVPair
+	var pair rest.KVPairV1
 	err = json.NewDecoder(resp.Body).Decode(&pair)
 	if err != nil {
 		bodyText, err := io.ReadAll(resp.Body)
@@ -123,7 +115,7 @@ func (c *Client) Generate(key string) bool {
 	if err != nil {
 		log.Printf("E Client Update(generate) call failed: %s", err)
 	}
-	var pair KVPair
+	var pair rest.KVPairV1
 	err = json.NewDecoder(resp.Body).Decode(&pair)
 	if err != nil {
 		bodyText, err := io.ReadAll(resp.Body)
@@ -148,7 +140,7 @@ func (c *Client) GetHealth() bool {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var health ServerHealth
+	var health rest.HealthV1
 	err = json.NewDecoder(resp.Body).Decode(&health)
 	if err != nil {
 		return false
