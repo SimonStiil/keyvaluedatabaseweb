@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+
+	"github.com/SimonStiil/keyvaluedatabase/rest"
 )
 
 type Application struct {
@@ -53,7 +55,7 @@ func (App *Application) RootController(w http.ResponseWriter, r *http.Request) {
 		}
 		function := r.PostFormValue("input")
 		requests.WithLabelValues(r.URL.EscapedPath(), r.Method, function).Inc()
-		pair := KVPair{Key: r.PostFormValue("key"),
+		pair := rest.KVPairV1{Key: r.PostFormValue("key"),
 			Value: r.PostFormValue("value")}
 		var ok bool
 		switch function {
@@ -95,7 +97,7 @@ func (App *Application) countRune(s string, r rune) int {
 	return count
 }
 
-func (App *Application) convertList(list []KVPair) []KeyValue {
+func (App *Application) convertList(list []rest.KVPairV1) []KeyValue {
 	var KeyValueList []KeyValue
 	for i, pair := range list {
 		KeyValueList = append(KeyValueList, KeyValue{Id: i, Key: pair.Key, Value: pair.Value, Lines: App.countRune(pair.Value, '\n')})

@@ -3,6 +3,7 @@ module github.com/SimonStiil/keyvaluedatabaseweb
 go 1.21.0
 
 require (
+	github.com/SimonStiil/keyvaluedatabase v0.0.0-20231130062305-3934d26e5cf5
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
