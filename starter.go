@@ -33,6 +33,8 @@ type ConfigBackend struct {
 	Port     string `mapstructure:"port"`
 	Protocol string `mapstructure:"protocol"`
 	Cert     string `mapstructure:"cert"`
+	CertDir  string `mapstructure:"certificateDirectory"`
+	insecure bool   `mapstructure:"insecure"`
 	Key      string `mapstructure:"key"`
 	Username string `mapstructure:"username"`
 }
@@ -61,7 +63,9 @@ func ConfigRead(configFileName string, configOutput *ConfigType) {
 	configReader.SetDefault("backend.protocol", "https")
 	configReader.SetDefault("backend.cert", "client.crt")
 	configReader.SetDefault("backend.key", "client.key")
+	configReader.SetDefault("backend.certificateDirectory", "/certificates/")
 	configReader.SetDefault("backend.username", "system")
+	configReader.SetDefault("backend.insecure", false)
 	configReader.SetDefault("prometheus.enabled", true)
 	configReader.SetDefault("prometheus.endpoint", "/system/metrics")
 	err := configReader.ReadInConfig() // Find and read the config file

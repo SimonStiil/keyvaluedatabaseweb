@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"io"
 	"log"
@@ -15,16 +17,36 @@ import (
 type Client struct {
 	BackendConfig ConfigBackend
 	Password      string
+	TLSCpnfig     *tls.Config
 }
 
 func InitClient(config ConfigBackend) *Client {
+	files, err := os.ReadDir(config.CertDir)
+	rootCAs := x509.NewCertPool()
+	if err != nil {
+		log.Printf("E %v", err)
+	}
+	for _, file := range files {
+		fileName := config.CertDir + string(os.PathSeparator) + file.Name()
+		certs, err := os.ReadFile(fileName)
+		if err != nil {
+			log.Printf("E Failed to append %q to RootCAs: %v", fileName, err)
+		}
+		if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
+			log.Printf("I %v certs not appended", file.Name())
+		}
+	}
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: config.insecure,
+		RootCAs:            rootCAs}
 	password := os.Getenv(BaseENVname + "_BACKEND_PASSWORD")
-	httpClient := &Client{BackendConfig: config, Password: password}
+	httpClient := &Client{BackendConfig: config, Password: password, TLSCpnfig: tlsConfig}
 	return httpClient
 }
 
 func (c *Client) GetList() []rest.KVPairV1 {
-	client := &http.Client{}
+	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
+	client := &http.Client{Transport: transport}
 	req, err := http.NewRequest("GET", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/system/fullList", nil)
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)
@@ -43,7 +65,8 @@ func (c *Client) GetList() []rest.KVPairV1 {
 	return list
 }
 func (c *Client) Set(pair rest.KVPairV1) bool {
-	client := &http.Client{}
+	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
+	client := &http.Client{Transport: transport}
 	marshalled, err := json.Marshal(pair)
 	if err != nil {
 		log.Printf("E impossible to marshall pair: %s", err)
@@ -64,7 +87,8 @@ func (c *Client) Set(pair rest.KVPairV1) bool {
 	return false
 }
 func (c *Client) Delete(key string) bool {
-	client := &http.Client{}
+	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
+	client := &http.Client{Transport: transport}
 	req, err := http.NewRequest("DELETE", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/"+key, nil)
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)
@@ -79,7 +103,8 @@ func (c *Client) Delete(key string) bool {
 	return false
 }
 func (c *Client) Roll(key string) bool {
-	client := &http.Client{}
+	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
+	client := &http.Client{Transport: transport}
 	method := "{\"type\": \"roll\"}"
 	req, err := http.NewRequest("UPDATE", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/"+key, bytes.NewReader([]byte(method)))
 	req.Header.Set("Content-Type", "application/json")
@@ -106,7 +131,8 @@ func (c *Client) Roll(key string) bool {
 	return false
 }
 func (c *Client) Generate(key string) bool {
-	client := &http.Client{}
+	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
+	client := &http.Client{Transport: transport}
 	method := "{\"type\": \"generate\"}"
 	req, err := http.NewRequest("UPDATE", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/"+key, bytes.NewReader([]byte(method)))
 	req.Header.Set("Content-Type", "application/json")
@@ -133,7 +159,8 @@ func (c *Client) Generate(key string) bool {
 	return false
 }
 func (c *Client) GetHealth() bool {
-	client := &http.Client{}
+	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
+	client := &http.Client{Transport: transport}
 	req, err := http.NewRequest("GET", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/system/health", nil)
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)

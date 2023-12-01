@@ -47,10 +47,10 @@
                                 <input type="text" name="id" id="id-input" class="form-control no-border" value="{{ .Id }}" maxlength="2" size="2" readonly/>
                             </th>
                             <td>
-                                <input type="text" name="key" id="key-input" class="form-control" value="{{ .Key }}" maxlength="50" size="50" {{if eq .Key "counter"}}readonly{{ else }}{{end}}/>
+                                <input type="text" name="key" id="key-input" class="form-control" value="{{ .Key }}" maxlength="32" size="42" {{if eq .Key "counter"}}readonly{{ else }}{{end}}/>
                             </td>
                             <td>
-                                <textarea type="text" name="value" id="value-input" rows="{{ .Lines }}" cols="100" class="form-control" style="text-align:left" {{if eq .Key "counter"}}readonly{{ else }}{{end}}>{{ .Value }}</textarea>
+                                <textarea type="text" name="value" id="value-input" rows="{{ .Lines }}" cols="100" maxlength="21800" class="form-control" style="text-align:left" {{if eq .Key "counter"}}readonly{{ else }}{{end}}>{{ .Value }}</textarea>
                             </td>
                             <td>
                                 <input type="submit" class="btn btn-success btn-block" name="input" id="update" value="Update" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
@@ -73,10 +73,10 @@
                                 <input type="text" name="id" id="id-input" class="form-control no-border" value="+" maxlength="2" size="2" readonly/>
                             </th>
                             <td>
-                                <input type="text" name="key" id="key-input" class="form-control"/>
+                                <input type="text" name="key" id="key-input" maxlength="32" size="42" class="form-control"/>
                             </td>
                             <td>
-                                <textarea type="text" name="value" id="value-input" rows="1" cols="50" class="form-control" style="text-align:left"></textarea>
+                                <textarea type="text" name="value" id="value-input" rows="1" cols="50" maxlength="21800" class="form-control" style="text-align:left"></textarea>
                             </td>
                             <td>
                                 <input type="submit" class="btn btn-success btn-block" name="input" id="create" value="Create" />

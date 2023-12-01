@@ -1,5 +1,7 @@
 port: 8081
-backend.port: 8080
-backend.host: localhost
-backend.protocol: http
-backend.username: system
+backend:
+  port: 443
+  host: secrets.stiil.dk
+  protocol: https
+  username: system
+  certificateDirectory: "certificates/"
