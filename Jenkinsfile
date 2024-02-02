@@ -9,7 +9,7 @@ podTemplate(yaml: '''
     spec:
       containers:
       - name: kaniko
-        image: gcr.io/kaniko-project/executor:debug
+        image: gcr.io/kaniko-project/executor:v1.20.0-debug
         command:
         - sleep
         args: 
@@ -18,7 +18,7 @@ podTemplate(yaml: '''
         - name: kaniko-secret
           mountPath: /kaniko/.docker
       - name: golang
-        image: golang:alpine
+        image: golang:1.21.6-alpine3.19
         command:
         - sleep
         args: 
@@ -34,11 +34,12 @@ podTemplate(yaml: '''
 ''') {
   node(POD_LABEL) {
     TreeMap scmData
+    String gitCommitMessage
     stage('checkout SCM') {  
       scmData = checkout scm
+      gitCommitMessage = sh(returnStdout: true, script: "git log --format=%B -n 1 ${scmData.GIT_COMMIT}").trim()
       gitMap = scmGetOrgRepo scmData.GIT_URL
       githubWebhookManager gitMap: gitMap, webhookTokenId: 'jenkins-webhook-repo-cleanup'
-      // Non importaint comment
     }
     container('golang') {
       stage('UnitTests') {
@@ -61,21 +62,23 @@ podTemplate(yaml: '''
         '''
       }
     }
-    stage('Build Docker Image') {
-      container('kaniko') {
-        def properties = readProperties file: 'package.env'
-        withEnv(["GIT_COMMIT=${scmData.GIT_COMMIT}", "PACKAGE_NAME=${properties.PACKAGE_NAME}", "PACKAGE_DESTINATION=${properties.PACKAGE_DESTINATION}", "GIT_BRANCH=${BRANCH_NAME}"]) {
-          if (isMainBranch()){
-            sh '''
-              /kaniko/executor --force --context `pwd` --log-format text --destination $PACKAGE_DESTINATION/$PACKAGE_NAME:$BRANCH_NAME --destination $PACKAGE_DESTINATION/$PACKAGE_NAME:latest --label org.opencontainers.image.description="Build based on https://github.com/SimonStiil/keyvaluedatabase/commit/$GIT_COMMIT" --label org.opencontainers.image.revision=$GIT_COMMIT --label org.opencontainers.image.version=$GIT_BRANCH
-            '''
-          } else {
-            sh '''
-              /kaniko/executor --force --context `pwd` --log-format text --destination $PACKAGE_DESTINATION/$PACKAGE_NAME:$BRANCH_NAME --label org.opencontainers.image.description="Build based on https://github.com/SimonStiil/keyvaluedatabase/commit/$GIT_COMMIT" --label org.opencontainers.image.revision=$GIT_COMMIT --label org.opencontainers.image.version=$GIT_BRANCH
-            '''
+    if ( !gitCommitMessage.startsWith("renovate/") || ! gitCommitMessage.startsWith("WIP") ) {
+      stage('Build Docker Image') {
+        container('kaniko') {
+          def properties = readProperties file: 'package.env'
+          withEnv(["GIT_COMMIT=${scmData.GIT_COMMIT}", "PACKAGE_NAME=${properties.PACKAGE_NAME}", "PACKAGE_DESTINATION=${properties.PACKAGE_DESTINATION}", "GIT_BRANCH=${BRANCH_NAME}"]) {
+            if (isMainBranch()){
+              sh '''
+                /kaniko/executor --force --context `pwd` --log-format text --destination $PACKAGE_DESTINATION/$PACKAGE_NAME:$BRANCH_NAME --destination $PACKAGE_DESTINATION/$PACKAGE_NAME:latest --label org.opencontainers.image.description="Build based on https://github.com/SimonStiil/keyvaluedatabase/commit/$GIT_COMMIT" --label org.opencontainers.image.revision=$GIT_COMMIT --label org.opencontainers.image.version=$GIT_BRANCH
+              '''
+            } else {
+              sh '''
+                /kaniko/executor --force --context `pwd` --log-format text --destination $PACKAGE_DESTINATION/$PACKAGE_NAME:$BRANCH_NAME --label org.opencontainers.image.description="Build based on https://github.com/SimonStiil/keyvaluedatabase/commit/$GIT_COMMIT" --label org.opencontainers.image.revision=$GIT_COMMIT --label org.opencontainers.image.version=$GIT_BRANCH
+              '''
+            }
           }
+          
         }
-        
       }
     }
   }
