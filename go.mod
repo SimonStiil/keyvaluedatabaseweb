@@ -3,7 +3,7 @@ module github.com/SimonStiil/keyvaluedatabaseweb
 go 1.21.6
 
 require (
-	github.com/SimonStiil/keyvaluedatabase v0.0.0-20240120191702-3451bddf85f7
+	github.com/SimonStiil/keyvaluedatabase v0.0.0-20240202115540-6648faaaee53
 	github.com/prometheus/client_golang v1.17.0
 	github.com/spf13/viper v1.17.0
 )

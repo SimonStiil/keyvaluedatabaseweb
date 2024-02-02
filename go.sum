@@ -42,6 +42,8 @@ github.com/SimonStiil/keyvaluedatabase v0.0.0-20231130062305-3934d26e5cf5 h1:GhA
 github.com/SimonStiil/keyvaluedatabase v0.0.0-20231130062305-3934d26e5cf5/go.mod h1:1qaCji3VD24sBtkx/P9x2NT9ugOD13qfq13Wlu/f45k=
 github.com/SimonStiil/keyvaluedatabase v0.0.0-20240120191702-3451bddf85f7 h1:S4Lc9Isj4yqLl+ZQVe5SDdVXKfSp9vN/ygbtMjd0xuk=
 github.com/SimonStiil/keyvaluedatabase v0.0.0-20240120191702-3451bddf85f7/go.mod h1:EPevJ/npwSQqs7kb9rx4+aTIPCgYHvpJ/e+P2oqioeU=
+github.com/SimonStiil/keyvaluedatabase v0.0.0-20240202115540-6648faaaee53 h1:fLDN5FDMpYioTTw2lK9vagAlpqMJZD4GThQwcHXxW2s=
+github.com/SimonStiil/keyvaluedatabase v0.0.0-20240202115540-6648faaaee53/go.mod h1:EPevJ/npwSQqs7kb9rx4+aTIPCgYHvpJ/e+P2oqioeU=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
