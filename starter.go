@@ -22,10 +22,15 @@ var (
 )
 
 type ConfigType struct {
-	Debug      bool             `mapstructure:"debug"`
+	Logging    ConfigLogging    `mapstructure:"logging"`
 	Port       string           `mapstructure:"port"`
 	Backend    ConfigBackend    `mapstructure:"backend"`
 	Prometheus ConfigPrometheus `mapstructure:"prometheus"`
+}
+type ConfigLogging struct {
+	Level  string `mapstructure:"level"`
+	Format string `mapstructure:"format"`
+	File   string `mapstructure:"file"`
 }
 
 type ConfigBackend struct {
@@ -55,7 +60,8 @@ func ConfigRead(configFileName string, configOutput *ConfigType) {
 	configReader.AddConfigPath("/app/")
 	configReader.AddConfigPath(".")
 	configReader.SetEnvPrefix(BaseENVname)
-	configReader.SetDefault("debug", false)
+	configReader.SetDefault("logging.level", "Debug")
+	configReader.SetDefault("logging.format", "text")
 	configReader.SetDefault("port", 8080)
 	configReader.SetDefault("backend.host", "kvdb")
 	// https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
@@ -84,11 +90,10 @@ func main() {
 	flag.StringVar(&configFileName, "config", "config", "Use a different config file name")
 	flag.Parse()
 	App := new(Application)
-	log.Println("Reading Configuration")
 	ConfigRead(configFileName, &App.Config)
+	App.setupLogging()
 
 	httpClient := InitClient(App.Config.Backend)
-	httpClient.GetList()
 	App.KVDBClient = httpClient
 	if App.Config.Prometheus.Enabled {
 		log.Printf("Metrics enabled at %v\n", App.Config.Prometheus.Endpoint)
@@ -96,6 +101,6 @@ func main() {
 	}
 	http.HandleFunc("/", http.HandlerFunc(App.RootController))
 	http.HandleFunc("/system/health", http.HandlerFunc(App.HealthActuator))
-	log.Printf("Serving on port %v", App.Config.Port)
+	App.Logger.Info(fmt.Sprintf("Serving on port %v", App.Config.Port))
 	log.Fatal(http.ListenAndServe(":"+App.Config.Port, nil))
 }

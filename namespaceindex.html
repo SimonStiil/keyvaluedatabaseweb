@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KBDBWeb</title>
+    <!-- https://getbootstrap.com/ -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- https://htmx.org/docs/#via-a-cdn-e-g-unpkg-com -->
+    <script src="https://unpkg.com/htmx.org@1.9.9" integrity="sha384-QFjmbokDn2DjBjq+fM+8LUIVrAgqcNW2s0PjAxHETgRn9l4fvX31ZxDxvwQnyMOX" crossorigin="anonymous"></script>
+    <style >
+#id-input
+{
+    border-width:0px;
+    border:none;
+    font-weight: bold;
+    text-align:center;
+}
+    </style>
+</head>
+<body class="container">
+
+    <div class="row mt-4 g-4">
+        <div class="col-12">
+            <h1 class="mb-4">KVDB List</h1>
+
+            <table class="table" id="kv-list">
+                <thead>
+                    <form action="/" method="get">
+                        <tr>
+                            <th scope="col" style="text-align:center;">#</th>
+                            <th scope="col">Key</th>
+                            <th scope="col">Value</th>
+                            <th scope="col"></th>
+                            <th scope="col">
+                                <input type="submit" class="btn btn-primary btn-block" name="input" id="refresh" value="Refresh" /></th>
+                            <th scope="col"></th>
+                        </tr>
+                    </form>
+                </thead>
+                <tbody>
+                    {{ range . }}
+                    {{ block "kv-list-element" .}}
+                    <form action="/" method="post">
+                        <tr>
+                            <th scope="row">
+                                <input type="text" name="id" id="id-input" class="form-control no-border" value="{{ .Id }}" maxlength="2" size="2" readonly/>
+                            </th>
+                            <td>
+                                <input type="text" name="key" id="key-input" class="form-control" value="{{ .Key }}" maxlength="32" size="42" {{if eq .Key "counter"}}readonly{{ else }}{{end}}/>
+                            </td>
+                            <td>
+                                <textarea type="text" name="value" id="value-input" rows="{{ .Lines }}" cols="100" maxlength="21800" class="form-control" style="text-align:left" {{if eq .Key "counter"}}readonly{{ else }}{{end}}>{{ .Value }}</textarea>
+                            </td>
+                            <td>
+                                <input type="submit" class="btn btn-success btn-block" name="input" id="update" value="Update" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
+                            </td>
+                            <td>
+                                <input type="submit" class="btn btn-primary btn-block" name="input" id="roll" value="Roll" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
+                            </td>
+                            <td>
+                                <input type="submit" class="btn btn-danger btn-block" name="input" id="delete" value="Delete" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
+                            </td>
+                        </tr>
+                    </form>
+                    {{ end }}
+                    {{ end }}
+                </tbody>
+                <tbody>
+                    <form action="/" method="post">
+                        <tr>
+                            <th scope="row">
+                                <input type="text" name="id" id="id-input" class="form-control no-border" value="+" maxlength="2" size="2" readonly/>
+                            </th>
+                            <td>
+                                <input type="text" name="key" id="key-input" maxlength="32" size="42" class="form-control"/>
+                            </td>
+                            <td>
+                                <textarea type="text" name="value" id="value-input" rows="1" cols="50" maxlength="21800" class="form-control" style="text-align:left"></textarea>
+                            </td>
+                            <td>
+                                <input type="submit" class="btn btn-success btn-block" name="input" id="create" value="Create" />
+                            </td>
+                            <td>
+                                <input type="submit" class="btn btn-primary btn-block" name="input" id="generate" value="Generate" />
+                            </td>
+                            <td>
+                            </td>
+                        </tr>
+                    </form>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

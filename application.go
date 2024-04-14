@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"html/template"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/SimonStiil/keyvaluedatabase/rest"
 )
@@ -12,6 +15,8 @@ import (
 type Application struct {
 	Config     ConfigType
 	KVDBClient *Client
+	Logger     *slog.Logger
+	Requestcount int
 }
 
 type KeyValue struct {
@@ -21,7 +26,17 @@ type KeyValue struct {
 	Lines int
 }
 
+type NamespaceKeyValue struct {
+	Id     int
+	Name   string
+	Size   int
+	Access bool
+}
+
 func (App *Application) HealthActuator(w http.ResponseWriter, r *http.Request) {
+	
+	logger := 
+	App.Logger.With(slog.Attr{Key: })
 	if App.Config.Prometheus.Enabled {
 		requests.WithLabelValues(r.URL.EscapedPath(), r.Method, "").Inc()
 	}
@@ -30,7 +45,7 @@ func (App *Application) HealthActuator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var reply Health
-	if App.KVDBClient.GetHealth() {
+	if App.KVDBClient.GetHealth() != nil {
 		reply.Status = "UP"
 		log.Printf("I %v %v %v", r.Method, r.URL.Path, http.StatusOK)
 	} else {
@@ -43,7 +58,43 @@ func (App *Application) HealthActuator(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func (App *Application) setupLogging() {
+	logLevel := strings.ToLower(App.Config.Logging.Level)
+	logFormat := strings.ToLower(App.Config.Logging.Format)
+	loggingLevel := new(slog.LevelVar)
+	switch logLevel {
+	case "debug":
+		loggingLevel.Set(slog.LevelDebug)
+	case "warn":
+		loggingLevel.Set(slog.LevelWarn)
+	case "error":
+		loggingLevel.Set(slog.LevelError)
+	default:
+		loggingLevel.Set(slog.LevelInfo)
+	}
+	switch logFormat {
+	case "json":
+		App.Logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: loggingLevel}))
+	default:
+		App.Logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: loggingLevel}))
+	}
+	App.Logger.Info("Logging started with options", "format", App.Config.Logging.Format, "level", App.Config.Logging.Level, "function", "setupLogging")
+	slog.SetDefault(App.Logger)
+}
+
 func (App *Application) RootController(w http.ResponseWriter, r *http.Request) {
+	slashSeperated := strings.Split(r.URL.Path[1:], "/")
+	if len(slashSeperated) > 0 {
+		namespace := slashSeperated[1]
+		App.KeysController(namespace, w, r)
+		return
+	} else {
+		App.NamespaceController(w, r)
+		return
+	}
+}
+
+func (App *Application) NamespaceController(w http.ResponseWriter, r *http.Request) {
 	statuscode := http.StatusOK
 	if r.Method == "POST" {
 		err := r.ParseForm()
@@ -55,8 +106,7 @@ func (App *Application) RootController(w http.ResponseWriter, r *http.Request) {
 		}
 		function := r.PostFormValue("input")
 		requests.WithLabelValues(r.URL.EscapedPath(), r.Method, function).Inc()
-		pair := rest.KVPairV1{Key: r.PostFormValue("key"),
-			Value: r.PostFormValue("value")}
+		pair := rest.NamespaceV2{Name: r.PostFormValue("key")}
 		var ok bool
 		switch function {
 		case "Create", "Update":
@@ -66,7 +116,7 @@ func (App *Application) RootController(w http.ResponseWriter, r *http.Request) {
 		case "Roll":
 			ok = App.KVDBClient.Roll(pair.Key)
 		case "Delete":
-			ok = App.KVDBClient.Delete(pair.Key)
+			ok = App.KVDBClient.DeleteNamespace(namespace)
 		default:
 			log.Printf("I RootController Unknown value %v", function)
 
@@ -79,11 +129,55 @@ func (App *Application) RootController(w http.ResponseWriter, r *http.Request) {
 		requests.WithLabelValues(r.URL.EscapedPath(), r.Method, "").Inc()
 		log.Printf("I %v %v %v", r.Method, r.URL.Path, statuscode)
 	}
-	kvlist := App.KVDBClient.GetList()
-	KeyValueList := App.convertList(kvlist)
+	kvlist := App.KVDBClient.GetNamespaceList()
+	KeyValueList := App.convertNamespaceList(kvlist)
 	w.WriteHeader(statuscode)
 	// https://pkg.go.dev/html/template
-	tmpl := template.Must(template.ParseFiles("index.html"))
+	tmpl := template.Must(template.ParseFiles("namespaceindex.html"))
+	tmpl.Execute(w, KeyValueList)
+}
+
+func (App *Application) KeysController(namespace string, w http.ResponseWriter, r *http.Request) {
+	statuscode := http.StatusOK
+	if r.Method == "POST" {
+		err := r.ParseForm()
+		if err != nil {
+			if App.Config.Debug {
+				log.Printf("ParseForm: %v, %t\n", err, err)
+			}
+			App.BadRequestHandler().ServeHTTP(w, r)
+		}
+		function := r.PostFormValue("input")
+		requests.WithLabelValues(r.URL.EscapedPath(), r.Method, function).Inc()
+		pair := rest.KVPairV2{Key: r.PostFormValue("key"),
+			Value: r.PostFormValue("value")}
+		var ok bool
+		switch function {
+		case "Create", "Update":
+			ok = App.KVDBClient.SetKey(namespace, pair)
+		case "Generate":
+			ok = App.KVDBClient.Generate(namespace, pair.Key)
+		case "Roll":
+			ok = App.KVDBClient.Roll(namespace, pair.Key)
+		case "Delete":
+			ok = App.KVDBClient.DeleteKey(namespace, pair.Key)
+		default:
+			log.Printf("I RootController Unknown value %v", function)
+
+		}
+		if !ok {
+			statuscode = http.StatusBadRequest
+		}
+		log.Printf("I %v %v %v %+v", r.Method, r.URL.Path, statuscode, r.PostForm)
+	} else {
+		requests.WithLabelValues(r.URL.EscapedPath(), r.Method, "").Inc()
+		log.Printf("I %v %v %v", r.Method, r.URL.Path, statuscode)
+	}
+	kvlist := App.KVDBClient.GetList("")
+	KeyValueList := App.convertKeyList(kvlist)
+	w.WriteHeader(statuscode)
+	// https://pkg.go.dev/html/template
+	tmpl := template.Must(template.ParseFiles("keysindex.html"))
 	tmpl.Execute(w, KeyValueList)
 }
 
@@ -97,10 +191,18 @@ func (App *Application) countRune(s string, r rune) int {
 	return count
 }
 
-func (App *Application) convertList(list []rest.KVPairV1) []KeyValue {
+func (App *Application) convertKeyList(list []rest.KVPairV2) []KeyValue {
 	var KeyValueList []KeyValue
 	for i, pair := range list {
 		KeyValueList = append(KeyValueList, KeyValue{Id: i, Key: pair.Key, Value: pair.Value, Lines: App.countRune(pair.Value, '\n')})
+	}
+	return KeyValueList
+}
+
+func (App *Application) convertNamespaceList(list []rest.NamespaceV2) []NamespaceKeyValue {
+	var KeyValueList []NamespaceKeyValue
+	for i, pair := range list {
+		KeyValueList = append(KeyValueList, NamespaceKeyValue{Id: i, Name: pair.Name, Size: pair.Size, Access: pair.Access})
 	}
 	return KeyValueList
 }
