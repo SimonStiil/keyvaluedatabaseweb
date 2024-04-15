@@ -209,7 +209,7 @@ func (c *Client) DeleteKey(logger *slog.Logger, namespace string, key string) er
 	if err != nil {
 		logger.Debug("ReadAll error", "response", resp, "error", err)
 	}
-	if resp.StatusCode == http.StatusCreated && strings.TrimSpace(string(bodyText)) == "OK" {
+	if resp.StatusCode == http.StatusOK && strings.TrimSpace(string(bodyText)) == "OK" {
 		return nil
 	}
 	logger.Debug("Content Error", "bodyText", bodyText)
@@ -262,16 +262,18 @@ func (c *Client) Generate(logger *slog.Logger, namespace string, key string) err
 	if err != nil {
 		return err
 	}
-	var pair rest.KVPairV2
-	err = json.NewDecoder(resp.Body).Decode(&pair)
-	if err != nil {
-		bodyText, readErr := io.ReadAll(resp.Body)
-		if readErr != nil {
-			return err
-		}
-		logger.Debug("Json decoder error", "response", resp, "body", bodyText, "error", err)
+	bodyBytes, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		logger.Debug("Read Body Error", "response", resp, "error", readErr)
+		return err
 	}
-	if resp.StatusCode == http.StatusOK && key == pair.Key {
+	reader := io.NopCloser(bytes.NewReader(bodyBytes))
+	var pair rest.KVPairV2
+	err = json.NewDecoder(reader).Decode(&pair)
+	if err != nil {
+		logger.Debug("Json decoder error", "response", resp, "body", string(bodyBytes), "error", err)
+	}
+	if resp.StatusCode == http.StatusOK && (key == "" || key == pair.Key) {
 		return nil
 	}
 	log.Printf("I %+v %+v", resp.StatusCode, pair)

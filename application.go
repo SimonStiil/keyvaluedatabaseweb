@@ -19,14 +19,23 @@ type Application struct {
 	Logger       *slog.Logger
 	Requestcount int
 }
-
+type KeyValueList struct {
+	Api       string
+	Namespace string
+	Items     []KeyValue
+}
 type KeyValue struct {
-	Id    int
-	Key   string
-	Value string
-	Lines int
+	Id       int
+	Key      string
+	Value    string
+	Lines    int
+	ReadOnly bool
 }
 
+type NamespaceKeyValueList struct {
+	Api   string
+	Items []NamespaceKeyValue
+}
 type NamespaceKeyValue struct {
 	Id     int
 	Name   string
@@ -86,12 +95,15 @@ func (App *Application) RootController(w http.ResponseWriter, r *http.Request) {
 	logger.Debug("Root Request", "function", "HealthActuator", "struct", "Application")
 	if request.Api == "" {
 		http.Redirect(w, r, "/v1", http.StatusSeeOther)
+		return
 	}
 	if request.Api == "v1" {
 		if request.Namespace != "" {
 			App.KeysController(w, request)
+			return
 		} else {
 			App.NamespaceController(w, request)
+			return
 		}
 	}
 	logger.Info("PathNotFound", "status", http.StatusNotFound)
@@ -114,7 +126,7 @@ func (App *Application) NamespaceController(w http.ResponseWriter, request *Requ
 		App.BadRequestHandler(logger, w, request)
 		return
 	}
-	KeyValueList := App.convertNamespaceList(kvlist)
+	KeyValueList := App.convertNamespaceList(request.Api, kvlist)
 	w.WriteHeader(statuscode)
 	// https://pkg.go.dev/html/template
 	tmpl := template.Must(template.ParseFiles("namespaceindex.html"))
@@ -138,7 +150,7 @@ func (App *Application) KeysController(w http.ResponseWriter, request *RequestPa
 		function := request.orgRequest.PostFormValue("input")
 		requests.WithLabelValues(request.Path, request.Method, function).Inc()
 		pair := rest.KVPairV2{Key: request.orgRequest.PostFormValue("key"),
-			Value: request.orgRequest.PostFormValue("value")}
+			Value: request.orgRequest.PostFormValue("value"), Namespace: request.Namespace}
 		switch function {
 		case "Create", "Update":
 			err = App.KVDBClient.SetKey(logger, request.Namespace, pair)
@@ -168,7 +180,7 @@ func (App *Application) KeysController(w http.ResponseWriter, request *RequestPa
 		App.BadRequestHandler(logger, w, request)
 		return
 	}
-	KeyValueList := App.convertKeyList(kvlist)
+	KeyValueList := App.convertKeyList(request.Api, request.Namespace, kvlist)
 	w.WriteHeader(statuscode)
 	// https://pkg.go.dev/html/template
 	tmpl := template.Must(template.ParseFiles("keysindex.html"))
@@ -185,20 +197,22 @@ func (App *Application) countRune(s string, r rune) int {
 	return count
 }
 
-func (App *Application) convertKeyList(list []rest.KVPairV2) []KeyValue {
-	var KeyValueList []KeyValue
+func (App *Application) convertKeyList(api string, namespace string, list []rest.KVPairV2) KeyValueList {
+	systemNS := namespace == "kvdb"
+	kvList := KeyValueList{Api: api, Namespace: namespace}
 	for i, pair := range list {
-		KeyValueList = append(KeyValueList, KeyValue{Id: i, Key: pair.Key, Value: pair.Value, Lines: App.countRune(pair.Value, '\n')})
+		readOnly := systemNS && pair.Key == "counter"
+		kvList.Items = append(kvList.Items, KeyValue{Id: i, Key: pair.Key, Value: pair.Value, Lines: App.countRune(pair.Value, '\n'), ReadOnly: readOnly})
 	}
-	return KeyValueList
+	return kvList
 }
 
-func (App *Application) convertNamespaceList(list []rest.NamespaceV2) []NamespaceKeyValue {
-	var KeyValueList []NamespaceKeyValue
+func (App *Application) convertNamespaceList(api string, list []rest.NamespaceV2) NamespaceKeyValueList {
+	namespaceKeyValueList := NamespaceKeyValueList{Api: api}
 	for i, pair := range list {
-		KeyValueList = append(KeyValueList, NamespaceKeyValue{Id: i, Name: pair.Name, Size: pair.Size, Access: pair.Access})
+		namespaceKeyValueList.Items = append(namespaceKeyValueList.Items, NamespaceKeyValue{Id: i, Name: pair.Name, Size: pair.Size, Access: pair.Access})
 	}
-	return KeyValueList
+	return namespaceKeyValueList
 }
 
 func (App *Application) BadRequestHandler(logger *slog.Logger, w http.ResponseWriter, request *RequestParameters) {

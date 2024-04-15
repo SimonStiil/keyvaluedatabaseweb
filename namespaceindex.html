@@ -18,76 +18,43 @@
 }
     </style>
 </head>
-<body class="container">
-
+<body class="container">{{$Api := .Api}}
     <div class="row mt-4 g-4">
         <div class="col-12">
-            <h1 class="mb-4">KVDB List</h1>
-
+            <h1 class="mb-4">KVDB Namespaces</h1>
             <table class="table" id="kv-list">
                 <thead>
-                    <form action="/" method="get">
-                        <tr>
-                            <th scope="col" style="text-align:center;">#</th>
-                            <th scope="col">Key</th>
-                            <th scope="col">Value</th>
-                            <th scope="col"></th>
-                            <th scope="col">
-                                <input type="submit" class="btn btn-primary btn-block" name="input" id="refresh" value="Refresh" /></th>
-                            <th scope="col"></th>
-                        </tr>
-                    </form>
+                    <tr>
+                        <th scope="col" style="text-align:center;">#</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Size</th>
+                        <th scope="col">Access</th>
+                        <th scope="col">
+                        <form action="/{{ $Api }}/" method="get">
+                            <input type="submit" class="btn btn-primary btn-block" name="input" id="refresh" value="Refresh" /></th>
+                        </form>
+                    </tr>
                 </thead>
-                <tbody>
-                    {{ range . }}
-                    {{ block "kv-list-element" .}}
-                    <form action="/" method="post">
-                        <tr>
-                            <th scope="row">
-                                <input type="text" name="id" id="id-input" class="form-control no-border" value="{{ .Id }}" maxlength="2" size="2" readonly/>
-                            </th>
-                            <td>
-                                <input type="text" name="key" id="key-input" class="form-control" value="{{ .Key }}" maxlength="32" size="42" {{if eq .Key "counter"}}readonly{{ else }}{{end}}/>
-                            </td>
-                            <td>
-                                <textarea type="text" name="value" id="value-input" rows="{{ .Lines }}" cols="100" maxlength="21800" class="form-control" style="text-align:left" {{if eq .Key "counter"}}readonly{{ else }}{{end}}>{{ .Value }}</textarea>
-                            </td>
-                            <td>
-                                <input type="submit" class="btn btn-success btn-block" name="input" id="update" value="Update" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
-                            </td>
-                            <td>
-                                <input type="submit" class="btn btn-primary btn-block" name="input" id="roll" value="Roll" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
-                            </td>
-                            <td>
-                                <input type="submit" class="btn btn-danger btn-block" name="input" id="delete" value="Delete" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
-                            </td>
-                        </tr>
-                    </form>
-                    {{ end }}
-                    {{ end }}
-                </tbody>
-                <tbody>
-                    <form action="/" method="post">
-                        <tr>
-                            <th scope="row">
-                                <input type="text" name="id" id="id-input" class="form-control no-border" value="+" maxlength="2" size="2" readonly/>
-                            </th>
-                            <td>
-                                <input type="text" name="key" id="key-input" maxlength="32" size="42" class="form-control"/>
-                            </td>
-                            <td>
-                                <textarea type="text" name="value" id="value-input" rows="1" cols="50" maxlength="21800" class="form-control" style="text-align:left"></textarea>
-                            </td>
-                            <td>
-                                <input type="submit" class="btn btn-success btn-block" name="input" id="create" value="Create" />
-                            </td>
-                            <td>
-                                <input type="submit" class="btn btn-primary btn-block" name="input" id="generate" value="Generate" />
-                            </td>
-                            <td>
-                            </td>
-                        </tr>
-                    </form>
+                <tbody>{{ range .Items }}
+                    <tr>
+                        <th scope="row">
+                            <input type="text" name="id" id="id-input" class="form-control no-border" value="{{ .Id }}" maxlength="2" size="2" readonly/>
+                        </th>
+                        <td>
+                            <input type="text" name="name" id="key-input" class="form-control" value="{{ .Name }}" maxlength="32" size="200" readonly/>
+                        </td>
+                        <td>
+                            <input type="text" name="size" id="key-input" class="form-control" value="{{ .Size }}" maxlength="32" size="42" readonly/>
+                        </td>
+                        <td>
+                            <input type="text" name="access" id="key-input" class="form-control" value="{{ .Access }}" maxlength="32" size="42" readonly/>
+                        </td>
+                        <td>
+                            <form action="/{{ $Api }}/{{ .Name }}/">
+                                <input type="submit" class="btn btn-primary btn-block" name="view" id="view" value="View" />
+                            </form>
+                        </td>
+                    </tr>{{ end }}
                 </tbody>
             </table>
         </div>
