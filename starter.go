@@ -96,7 +96,7 @@ func main() {
 	httpClient := InitClient(App.Config.Backend)
 	App.KVDBClient = httpClient
 	if App.Config.Prometheus.Enabled {
-		log.Printf("Metrics enabled at %v\n", App.Config.Prometheus.Endpoint)
+		App.Logger.Info(fmt.Sprintf("Metrics enabled at %v", App.Config.Prometheus.Endpoint))
 		http.Handle(App.Config.Prometheus.Endpoint, promhttp.Handler())
 	}
 	http.HandleFunc("/", http.HandlerFunc(App.RootController))

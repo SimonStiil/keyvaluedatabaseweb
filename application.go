@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
 	"log/slog"
@@ -13,9 +14,9 @@ import (
 )
 
 type Application struct {
-	Config     ConfigType
-	KVDBClient *Client
-	Logger     *slog.Logger
+	Config       ConfigType
+	KVDBClient   *Client
+	Logger       *slog.Logger
 	Requestcount int
 }
 
@@ -34,9 +35,7 @@ type NamespaceKeyValue struct {
 }
 
 func (App *Application) HealthActuator(w http.ResponseWriter, r *http.Request) {
-	
-	logger := 
-	App.Logger.With(slog.Attr{Key: })
+	logger := App.Logger.With(slog.Any("id", RandomID())).With(slog.Any("function", "HealthActuator")).With(slog.Any("struct", "Application")).With(slog.Any("remoteAddr", r.RemoteAddr)).With(slog.Any("method", r.Method))
 	if App.Config.Prometheus.Enabled {
 		requests.WithLabelValues(r.URL.EscapedPath(), r.Method, "").Inc()
 	}
@@ -47,11 +46,11 @@ func (App *Application) HealthActuator(w http.ResponseWriter, r *http.Request) {
 	var reply Health
 	if App.KVDBClient.GetHealth() != nil {
 		reply.Status = "UP"
-		log.Printf("I %v %v %v", r.Method, r.URL.Path, http.StatusOK)
+		logger.Info("health", "status", http.StatusOK)
 	} else {
 		reply.Status = "DOWN"
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("I %v %v %v", r.Method, r.URL.Path, http.StatusInternalServerError)
+		logger.Info("health", "status", http.StatusInternalServerError)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(reply)
@@ -83,18 +82,27 @@ func (App *Application) setupLogging() {
 }
 
 func (App *Application) RootController(w http.ResponseWriter, r *http.Request) {
-	slashSeperated := strings.Split(r.URL.Path[1:], "/")
-	if len(slashSeperated) > 0 {
-		namespace := slashSeperated[1]
-		App.KeysController(namespace, w, r)
-		return
-	} else {
-		App.NamespaceController(w, r)
-		return
+	request := GetRequestParameters(r)
+	logger := App.Logger.With(slog.Any("id", request.ID)).With(slog.Any("remoteAddr", r.RemoteAddr)).With(slog.Any("method", r.Method), "path", r.URL.EscapedPath())
+	logger.Debug("Root Request", "function", "HealthActuator", "struct", "Application")
+	if request.Api == "" {
+		http.Redirect(w, r, "/v1", http.StatusSeeOther)
 	}
+	if request.Api == "v1" {
+		if request.Namespace != "" {
+			App.KeysController(w, request)
+		} else {
+			App.NamespaceController(w, request)
+		}
+	}
+	logger.Info("PathNotFound", http.StatusNotFound)
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte(fmt.Sprintf("%v Not Found", http.StatusNotFound)))
 }
 
-func (App *Application) NamespaceController(w http.ResponseWriter, r *http.Request) {
+func (App *Application) NamespaceController(w http.ResponseWriter, request *RequestParameters) {
 	statuscode := http.StatusOK
 	if r.Method == "POST" {
 		err := r.ParseForm()
@@ -137,7 +145,7 @@ func (App *Application) NamespaceController(w http.ResponseWriter, r *http.Reque
 	tmpl.Execute(w, KeyValueList)
 }
 
-func (App *Application) KeysController(namespace string, w http.ResponseWriter, r *http.Request) {
+func (App *Application) KeysController(w http.ResponseWriter, request *RequestParameters) {
 	statuscode := http.StatusOK
 	if r.Method == "POST" {
 		err := r.ParseForm()

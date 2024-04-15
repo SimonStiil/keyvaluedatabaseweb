@@ -17,7 +17,7 @@ type RequestParameters struct {
 
 func GetRequestParameters(r *http.Request) *RequestParameters {
 	slashSeperated := strings.Split(r.URL.Path[1:], "/")
-	req := &RequestParameters{Method: r.Method, orgRequest: r, ID: rand.Intn(9999)}
+	req := &RequestParameters{Method: r.Method, orgRequest: r, ID: RandomID()}
 	if len(slashSeperated) > 0 {
 		req.Api = slashSeperated[0]
 	}
@@ -25,4 +25,7 @@ func GetRequestParameters(r *http.Request) *RequestParameters {
 		req.Namespace = slashSeperated[1]
 	}
 	return req
+}
+func RandomID() int {
+	return rand.Intn(9999)
 }
