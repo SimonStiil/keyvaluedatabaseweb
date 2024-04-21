@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -22,6 +21,7 @@ type Application struct {
 type KeyValueList struct {
 	Api       string
 	Namespace string
+	System    bool
 	Items     []KeyValue
 }
 type KeyValue struct {
@@ -118,8 +118,34 @@ func (App *Application) NamespaceController(w http.ResponseWriter, request *Requ
 	debugLogger := logger.With(slog.Any("function", "NamespaceController")).With(slog.Any("struct", "Application"))
 	debugLogger.Debug("Namespace Request")
 	statuscode := http.StatusOK
-	requests.WithLabelValues(request.Path, request.Method, "").Inc()
-	logger.Info("Keys request", "status", statuscode)
+	if request.Method == "POST" {
+		err := request.orgRequest.ParseForm()
+		if err != nil {
+			debugLogger.Debug("ParseForm Error", "type", fmt.Sprintf("%t", err), "error", err)
+			App.BadRequestHandler(logger, w, request)
+			return
+		} else {
+			debugLogger.Debug("ParseForm", "values", request.orgRequest.PostForm)
+		}
+		function := request.orgRequest.PostFormValue("input")
+		requests.WithLabelValues(request.Path, request.Method, function).Inc()
+		namespaceName := request.orgRequest.PostFormValue("name")
+		switch function {
+		case "Create":
+			err = App.KVDBClient.CreateNamespace(logger, namespaceName)
+		default:
+			debugLogger.Debug("Unknown post", "function", function)
+		}
+		if err != nil {
+			debugLogger.Debug("Post Function Error", "type", fmt.Sprintf("%t", err), "error", err)
+			App.BadRequestHandler(logger, w, request)
+			return
+		}
+		logger.Info("Namespace request", "status", statuscode)
+	} else {
+		requests.WithLabelValues(request.Path, request.Method, "").Inc()
+		logger.Info("Namespace request", "status", statuscode)
+	}
 	kvlist, err := App.KVDBClient.GetNamespaceList(logger)
 	if err != nil {
 		debugLogger.Debug("GetNamespaceList Error", "type", fmt.Sprintf("%t", err), "error", err)
@@ -148,21 +174,28 @@ func (App *Application) KeysController(w http.ResponseWriter, request *RequestPa
 			debugLogger.Debug("ParseForm", "values", request.orgRequest.PostForm)
 		}
 		function := request.orgRequest.PostFormValue("input")
+		namespace := request.orgRequest.PostFormValue("namespace")
 		requests.WithLabelValues(request.Path, request.Method, function).Inc()
-		pair := rest.KVPairV2{Key: request.orgRequest.PostFormValue("key"),
-			Value: request.orgRequest.PostFormValue("value"), Namespace: request.Namespace}
+		key := request.orgRequest.PostFormValue("key")
+		value := request.orgRequest.PostFormValue("value")
+
 		switch function {
 		case "Create", "Update":
-			err = App.KVDBClient.SetKey(logger, request.Namespace, pair)
+			err = App.KVDBClient.SetKey(logger, request.Namespace, key, value)
 		case "Generate":
-			err = App.KVDBClient.Generate(logger, request.Namespace, pair.Key)
+			err = App.KVDBClient.Generate(logger, request.Namespace, key)
 		case "Roll":
-			err = App.KVDBClient.Roll(logger, request.Namespace, pair.Key)
+			err = App.KVDBClient.Roll(logger, request.Namespace, key)
 		case "Delete":
-			err = App.KVDBClient.DeleteKey(logger, request.Namespace, pair.Key)
+			if namespace != "" {
+				err = App.KVDBClient.DeleteNamespace(logger, request.Namespace)
+				http.Redirect(w, request.orgRequest, "/v1", http.StatusSeeOther)
+				return
+			} else {
+				err = App.KVDBClient.DeleteKey(logger, request.Namespace, key)
+			}
 		default:
-			log.Printf("I RootController Unknown value %v", function)
-
+			debugLogger.Debug("Unknown post", "function", function)
 		}
 		if err != nil {
 			debugLogger.Debug("Post Function Error", "type", fmt.Sprintf("%t", err), "error", err)

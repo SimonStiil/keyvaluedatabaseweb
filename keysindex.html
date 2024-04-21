@@ -37,7 +37,12 @@
                             <form action="/{{ $Api }}/{{ $Namespace }}/" method="get">
                                 <input type="submit" class="btn btn-primary btn-block" name="input" id="refresh" value="Refresh" /></th>
                             </form>
-                        <th scope="col"></th>
+                        <th scope="col">
+                            <form action="/{{ $Api }}/{{ $Namespace }}/" method="post" >
+                                <input type="hidden" name="namespace" value="{{ $Namespace }}" />
+                                <input type="submit" class="btn btn-danger btn-block" name="input" id="delete" value="Delete" onclick="return confirm('Are you sure?')" {{if .System }}disabled{{ else }}{{end}}/>
+                            </form>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>

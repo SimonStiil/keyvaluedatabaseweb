@@ -56,6 +56,23 @@
                         </td>
                     </tr>{{ end }}
                 </tbody>
+                <tbody>
+                    <form action="/{{ $Api }}/" method="post">
+                        <tr>
+                            <th scope="row">
+                                <input type="text" name="id" id="id-input" class="form-control no-border" value="+" maxlength="2" size="2" readonly/>
+                            </th>
+                            <td>
+                                <input type="text" name="name" id="key-input" class="form-control" value="" maxlength="32" size="200"/>
+                            </td>
+                            <td></td>
+                            <td></td>
+                            <td>
+                                <input type="submit" class="btn btn-success btn-block" name="input" id="create" value="Create" />
+                            </td>
+                        </tr>
+                    </form>
+                </tbody>
             </table>
         </div>
     </div>

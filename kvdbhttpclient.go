@@ -55,15 +55,20 @@ func (e *HTTPStatusError) Error() string {
 	return fmt.Sprintf("%v %v", e.StatusCode, e.Status)
 }
 
+func (c *Client) generatedBodyFromStatus(status int) string {
+	return fmt.Sprintf("%v %v", status, http.StatusText(status))
+}
+
 func (c *Client) GetNamespaceList(logger *slog.Logger) ([]rest.NamespaceV2, error) {
-	logger.Debug("Get Namespace List", "function", "GetNamespaceList", "struct", "Client")
+	debugLogger := logger.With("function", "GetNamespaceList", "struct", "Client")
+	debugLogger.Debug("Get Namespace List", "function", "GetNamespaceList", "struct", "Client")
 	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
 	client := &http.Client{Transport: transport}
 	req, _ := http.NewRequest("GET", fmt.Sprintf("%v://%v:%v/v1/*", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port), nil)
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)
-	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		logger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
+	if resp.StatusCode != http.StatusOK {
+		debugLogger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
 		return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 	}
 	if err != nil {
@@ -76,20 +81,21 @@ func (c *Client) GetNamespaceList(logger *slog.Logger) ([]rest.NamespaceV2, erro
 		if readErr != nil {
 			return nil, err
 		}
-		logger.Debug("Json decoder error", "response", resp, "body", bodyText, "error", err)
+		debugLogger.Debug("Json decoder error", "response", resp, "body", bodyText, "error", err)
 	}
 	return list, nil
 }
 
 func (c *Client) GetKeyList(logger *slog.Logger, namespace string) ([]rest.KVPairV2, error) {
-	logger.Debug("Get Key List", "function", "GetKeyList", "struct", "Client", "namespace", namespace)
+	debugLogger := logger.With("function", "GetKeyList", "struct", "Client", "namespace", namespace)
+	debugLogger.Debug("Get Key List")
 	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
 	client := &http.Client{Transport: transport}
 	req, _ := http.NewRequest("GET", fmt.Sprintf("%v://%v:%v/v1/%v/*", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port, namespace), nil)
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)
-	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		logger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
+	if resp.StatusCode != http.StatusOK {
+		debugLogger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
 		return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 	}
 	if err != nil {
@@ -102,25 +108,27 @@ func (c *Client) GetKeyList(logger *slog.Logger, namespace string) ([]rest.KVPai
 		if readErr != nil {
 			return nil, err
 		}
-		logger.Debug("Json decoder error", "response", resp, "body", bodyText, "error", err)
+		debugLogger.Debug("Json decoder error", "response", resp, "body", bodyText, "error", err)
 	}
 	return list, nil
 }
-func (c *Client) SetKey(logger *slog.Logger, namespace string, pair rest.KVPairV2) error {
-	logger.Debug("Set Key", "function", "SetKey", "struct", "Client", "namespace", namespace)
+func (c *Client) SetKey(logger *slog.Logger, namespace string, key string, value string) error {
+	debugLogger := logger.With("function", "SetKey", "struct", "Client", "namespace", namespace)
+	debugLogger.Debug("Set Key")
 	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
 	client := &http.Client{Transport: transport}
-	marshalled, err := json.Marshal(pair)
+	obj := rest.ObjectV1{Type: rest.TypeKey, Value: value}
+	marshalled, err := json.Marshal(obj)
 	if err != nil {
-		log.Printf("E impossible to marshall pair: %s", err)
+		logger.Error("Impossible to marshall pair: %s", err)
 		return err
 	}
-	req, _ := http.NewRequest("POST", fmt.Sprintf("%v://%v:%v/v1", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port), bytes.NewReader(marshalled))
+	req, _ := http.NewRequest("POST", fmt.Sprintf("%v://%v:%v/v1/%v/%v", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port, namespace, key), bytes.NewReader(marshalled))
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
-	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		logger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
+	if resp.StatusCode != http.StatusCreated {
+		debugLogger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
 		return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 	}
 	if err != nil {
@@ -128,54 +136,56 @@ func (c *Client) SetKey(logger *slog.Logger, namespace string, pair rest.KVPairV
 	}
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Debug("ReadAll error", "response", resp, "error", err)
+		debugLogger.Debug("ReadAll error", "response", resp, "error", err)
 	}
-	if resp.StatusCode == http.StatusCreated && strings.TrimSpace(string(bodyText)) == "OK" {
+	if strings.TrimSpace(string(bodyText)) == c.generatedBodyFromStatus(http.StatusCreated) {
 		return nil
 	}
-	logger.Debug("Content Error", "bodyText", bodyText)
+	debugLogger.Debug("Content Error", "bodyText", bodyText)
 	return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 }
-func (c *Client) CreateNamespace(logger *slog.Logger, namespace string) error { // TODO
-	logger.Debug("Create Namespace", "function", "CreateNamespace", "struct", "Client", "namespace", namespace)
+func (c *Client) CreateNamespace(logger *slog.Logger, namespace string) error {
+	debugLogger := logger.With("function", "CreateNamespace", "struct", "Client", "namespace", namespace)
+	debugLogger.Debug("Create Namespace")
 	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
 	client := &http.Client{Transport: transport}
-	namespaceObj := rest.NamespaceV2{Name: namespace}
-	marshalled, err := json.Marshal(namespaceObj)
+	obj := rest.ObjectV1{Value: namespace}
+	marshalled, err := json.Marshal(obj)
 	if err != nil {
-		log.Printf("E impossible to marshall pair: %s", err)
+		logger.Error("impossible to marshall pair: %s", err)
 		return err
 	}
 	req, _ := http.NewRequest("POST", fmt.Sprintf("%v://%v:%v/v1", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port), bytes.NewReader(marshalled))
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
-	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		logger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
-		return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
-	}
 	if err != nil {
 		return err
 	}
+	if resp.StatusCode != http.StatusCreated {
+		debugLogger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
+		return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
+	}
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Debug("ReadAll error", "response", resp, "error", err)
+		debugLogger.Debug("ReadAll error", "response", resp, "error", err)
 	}
-	if resp.StatusCode == http.StatusCreated && strings.TrimSpace(string(bodyText)) == "OK" {
+	if string(bodyText) == c.generatedBodyFromStatus(http.StatusCreated) {
 		return nil
 	}
-	logger.Debug("Content Error", "bodyText", bodyText)
+	debugLogger.Debug("Content Error", "bodyText", bodyText)
 	return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 }
 func (c *Client) DeleteNamespace(logger *slog.Logger, namespace string) error {
-	logger.Debug("Delete Namespace", "function", "DeleteNamespace", "struct", "Client", "namespace", namespace)
+	debugLogger := logger.With("function", "DeleteNamespace", "struct", "Client", "namespace", namespace)
+	debugLogger.Debug("Delete Namespace")
 	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
 	client := &http.Client{Transport: transport}
 	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%v://%v:%v/v1/%v", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port, namespace), nil)
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)
-	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		logger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
+	if resp.StatusCode != http.StatusOK {
+		debugLogger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
 		return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 	}
 	if err != nil {
@@ -183,23 +193,24 @@ func (c *Client) DeleteNamespace(logger *slog.Logger, namespace string) error {
 	}
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Debug("ReadAll error", "response", resp, "error", err)
+		debugLogger.Debug("ReadAll error", "response", resp, "error", err)
 	}
-	if resp.StatusCode == http.StatusCreated && strings.TrimSpace(string(bodyText)) == "OK" {
+	if strings.TrimSpace(string(bodyText)) == c.generatedBodyFromStatus(http.StatusOK) {
 		return nil
 	}
-	logger.Debug("Content Error", "bodyText", bodyText)
+	debugLogger.Debug("Content Error", "bodyText", bodyText)
 	return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 }
 func (c *Client) DeleteKey(logger *slog.Logger, namespace string, key string) error {
-	logger.Debug("Delete Key", "function", "DeleteKey", "struct", "Client", "namespace", namespace)
+	debugLogger := logger.With("function", "DeleteKey", "struct", "Client", "namespace", namespace)
+	debugLogger.Debug("Delete Key")
 	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
 	client := &http.Client{Transport: transport}
 	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%v://%v:%v/v1/%v/%v", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port, namespace, key), nil)
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)
-	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		logger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
+	if resp.StatusCode != http.StatusOK {
+		debugLogger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
 		return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 	}
 	if err != nil {
@@ -207,25 +218,31 @@ func (c *Client) DeleteKey(logger *slog.Logger, namespace string, key string) er
 	}
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Debug("ReadAll error", "response", resp, "error", err)
+		debugLogger.Debug("ReadAll error", "response", resp, "error", err)
 	}
-	if resp.StatusCode == http.StatusOK && strings.TrimSpace(string(bodyText)) == "OK" {
+	if strings.TrimSpace(string(bodyText)) == c.generatedBodyFromStatus(http.StatusOK) {
 		return nil
 	}
-	logger.Debug("Content Error", "bodyText", bodyText)
+	debugLogger.Debug("Content Error", "bodyText", bodyText)
 	return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 }
 func (c *Client) Roll(logger *slog.Logger, namespace string, key string) error {
-	logger.Debug("Roll", "function", "Roll", "struct", "Client", "namespace", namespace)
+	debugLogger := logger.With("function", "Roll", "struct", "Client", "namespace", namespace)
+	debugLogger.Debug("Roll")
 	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
 	client := &http.Client{Transport: transport}
-	method := "{\"type\": \"roll\"}"
-	req, _ := http.NewRequest("UPDATE", fmt.Sprintf("%v://%v:%v/v1/%v/%v", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port, namespace, key), bytes.NewReader([]byte(method)))
+	obj := rest.ObjectV1{Type: rest.TypeRoll}
+	marshalled, err := json.Marshal(obj)
+	if err != nil {
+		logger.Error("Impossible to marshall pair: %s", err)
+		return err
+	}
+	req, _ := http.NewRequest("UPDATE", fmt.Sprintf("%v://%v:%v/v1/%v/%v", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port, namespace, key), bytes.NewReader(marshalled))
 	req.Header.Set("Content-Type", "application/json")
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)
-	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		logger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
+	if resp.StatusCode != http.StatusCreated {
+		debugLogger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
 		return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 	}
 	if err != nil {
@@ -238,25 +255,31 @@ func (c *Client) Roll(logger *slog.Logger, namespace string, key string) error {
 		if readErr != nil {
 			return err
 		}
-		logger.Debug("Json decoder error", "response", resp, "body", bodyText, "error", err)
+		debugLogger.Debug("Json decoder error", "response", resp, "body", bodyText, "error", err)
 	}
-	if resp.StatusCode == http.StatusOK && key == pair.Key {
+	if key == pair.Key {
 		return nil
 	}
-	logger.Debug("Content Error", "pair", pair)
+	debugLogger.Debug("Content Error", "pair", pair)
 	return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 }
 func (c *Client) Generate(logger *slog.Logger, namespace string, key string) error {
-	logger.Debug("Generate", "function", "Generate", "struct", "Client", "namespace", namespace)
+	debugLogger := logger.With("function", "Generate", "struct", "Client", "namespace", namespace)
+	debugLogger.Debug("Generate")
 	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
 	client := &http.Client{Transport: transport}
-	method := "{\"type\": \"generate\"}"
-	req, _ := http.NewRequest("UPDATE", fmt.Sprintf("%v://%v:%v/v1/%v/%v", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port, namespace, key), bytes.NewReader([]byte(method)))
+	obj := rest.ObjectV1{Type: rest.TypeGenerate}
+	marshalled, err := json.Marshal(obj)
+	if err != nil {
+		logger.Error("Impossible to marshall pair: %s", err)
+		return err
+	}
+	req, _ := http.NewRequest("UPDATE", fmt.Sprintf("%v://%v:%v/v1/%v/%v", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port, namespace, key), bytes.NewReader(marshalled))
 	req.Header.Set("Content-Type", "application/json")
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)
-	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		logger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
+	if resp.StatusCode != http.StatusCreated {
+		debugLogger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
 		return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 	}
 	if err != nil {
@@ -264,30 +287,31 @@ func (c *Client) Generate(logger *slog.Logger, namespace string, key string) err
 	}
 	bodyBytes, readErr := io.ReadAll(resp.Body)
 	if readErr != nil {
-		logger.Debug("Read Body Error", "response", resp, "error", readErr)
+		debugLogger.Debug("Read Body Error", "response", resp, "error", readErr)
 		return err
 	}
 	reader := io.NopCloser(bytes.NewReader(bodyBytes))
 	var pair rest.KVPairV2
 	err = json.NewDecoder(reader).Decode(&pair)
 	if err != nil {
-		logger.Debug("Json decoder error", "response", resp, "body", string(bodyBytes), "error", err)
+		debugLogger.Debug("Json decoder error", "response", resp, "body", string(bodyBytes), "error", err)
 	}
-	if resp.StatusCode == http.StatusOK && (key == "" || key == pair.Key) {
+	if key == "" || key == pair.Key {
 		return nil
 	}
-	log.Printf("I %+v %+v", resp.StatusCode, pair)
+	debugLogger.Debug("Content Error", "pair", pair)
 	return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 }
 func (c *Client) GetHealth(logger *slog.Logger) error {
-	logger.Debug("Get Health", "function", "GetHealth", "struct", "Client")
+	debugLogger := logger.With("function", "GetHealth", "struct", "Client")
+	debugLogger.Debug("Get Health")
 	transport := &http.Transport{TLSClientConfig: c.TLSCpnfig}
 	client := &http.Client{Transport: transport}
 	req, _ := http.NewRequest("GET", c.BackendConfig.Protocol+"://"+c.BackendConfig.Host+":"+c.BackendConfig.Port+"/system/health", nil)
 	req.SetBasicAuth(c.BackendConfig.Username, c.Password)
 	resp, err := client.Do(req)
 	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		logger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
+		debugLogger.Debug("Wrong status on request", "statuscode", resp.StatusCode, "response", resp)
 		return &HTTPStatusError{StatusCode: resp.StatusCode, Status: resp.Status}
 	}
 	if err != nil {
