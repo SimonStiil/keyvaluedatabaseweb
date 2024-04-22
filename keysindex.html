@@ -18,56 +18,61 @@
 }
     </style>
 </head>
-<body class="container">
-
+<body class="container">{{$Api := .Api}}{{$Namespace := .Namespace}}
     <div class="row mt-4 g-4">
         <div class="col-12">
-            <h1 class="mb-4">KVDB List</h1>
+            <h1 class="mb-4">KVDB Namespace {{ $Namespace }}</h1>
 
             <table class="table" id="kv-list">
                 <thead>
-                    <form action="/" method="get">
-                        <tr>
-                            <th scope="col" style="text-align:center;">#</th>
-                            <th scope="col">Key</th>
-                            <th scope="col">Value</th>
-                            <th scope="col"></th>
-                            <th scope="col">
+                    <tr>
+                        <th scope="col" style="text-align:center;">#</th>
+                        <th scope="col">Key</th>
+                        <th scope="col">Value</th>
+                        <th scope="col">
+                            <form action="/{{ $Api }}//" method="get">
+                                <input type="submit" class="btn btn-success btn-block" name="input" id="return" value="Return" /></th>
+                            </form></th>
+                        <th scope="col">
+                            <form action="/{{ $Api }}/{{ $Namespace }}/" method="get">
                                 <input type="submit" class="btn btn-primary btn-block" name="input" id="refresh" value="Refresh" /></th>
-                            <th scope="col"></th>
-                        </tr>
-                    </form>
+                            </form>
+                        <th scope="col">
+                            <form action="/{{ $Api }}/{{ $Namespace }}/" method="post" >
+                                <input type="hidden" name="namespace" value="{{ $Namespace }}" />
+                                <input type="submit" class="btn btn-danger btn-block" name="input" id="delete" value="Delete" onclick="return confirm('Are you sure?')" {{if .System }}disabled{{ else }}{{end}}/>
+                            </form>
+                        </th>
+                    </tr>
                 </thead>
                 <tbody>
-                    {{ range . }}
-                    {{ block "kv-list-element" .}}
-                    <form action="/" method="post">
+                    {{ range .Items }}
+                    <form action="/{{ $Api }}/{{ $Namespace }}/" method="post">
                         <tr>
                             <th scope="row">
                                 <input type="text" name="id" id="id-input" class="form-control no-border" value="{{ .Id }}" maxlength="2" size="2" readonly/>
                             </th>
                             <td>
-                                <input type="text" name="key" id="key-input" class="form-control" value="{{ .Key }}" maxlength="32" size="42" {{if eq .Key "counter"}}readonly{{ else }}{{end}}/>
+                                <input type="text" name="key" id="key-input" class="form-control" value="{{ .Key }}" maxlength="32" size="42" {{if .ReadOnly }}readonly{{ else }}{{end}}/>
                             </td>
                             <td>
-                                <textarea type="text" name="value" id="value-input" rows="{{ .Lines }}" cols="100" maxlength="21800" class="form-control" style="text-align:left" {{if eq .Key "counter"}}readonly{{ else }}{{end}}>{{ .Value }}</textarea>
+                                <textarea type="text" name="value" id="value-input" rows="{{ .Lines }}" cols="100" maxlength="21800" class="form-control" style="text-align:left" {{if .ReadOnly }}readonly{{ else }}{{end}}>{{ .Value }}</textarea>
                             </td>
                             <td>
-                                <input type="submit" class="btn btn-success btn-block" name="input" id="update" value="Update" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
+                                <input type="submit" class="btn btn-success btn-block" name="input" id="update" value="Update" {{if .ReadOnly }}disabled{{ else }}{{end}}/>
                             </td>
                             <td>
-                                <input type="submit" class="btn btn-primary btn-block" name="input" id="roll" value="Roll" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
+                                <input type="submit" class="btn btn-primary btn-block" name="input" id="roll" value="Roll" {{if .ReadOnly }}disabled{{ else }}{{end}}/>
                             </td>
                             <td>
-                                <input type="submit" class="btn btn-danger btn-block" name="input" id="delete" value="Delete" {{if eq .Key "counter"}}disabled{{ else }}{{end}}/>
+                                <input type="submit" class="btn btn-danger btn-block" name="input" id="delete" value="Delete" onclick="return confirm('Are you sure?')" {{if .ReadOnly }}disabled{{ else }}{{end}}/>
                             </td>
                         </tr>
                     </form>
                     {{ end }}
-                    {{ end }}
                 </tbody>
                 <tbody>
-                    <form action="/" method="post">
+                    <form action="/{{ $Api }}/{{ $Namespace }}/" method="post">
                         <tr>
                             <th scope="row">
                                 <input type="text" name="id" id="id-input" class="form-control no-border" value="+" maxlength="2" size="2" readonly/>
