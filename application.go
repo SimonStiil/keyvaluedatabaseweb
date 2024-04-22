@@ -155,7 +155,7 @@ func (App *Application) NamespaceController(w http.ResponseWriter, request *Requ
 	KeyValueList := App.convertNamespaceList(request.Api, kvlist)
 	w.WriteHeader(statuscode)
 	// https://pkg.go.dev/html/template
-	tmpl := template.Must(template.ParseFiles("namespaceindex.html"))
+	tmpl := template.Must(template.ParseFiles("namespacesindex.html"))
 	tmpl.Execute(w, KeyValueList)
 }
 
