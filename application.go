@@ -2,26 +2,49 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/SimonStiil/keyvaluedatabase/rest"
 )
 
 type Application struct {
-	Config     ConfigType
-	KVDBClient *Client
+	Config       ConfigType
+	KVDBClient   *Client
+	Logger       *slog.Logger
+	Requestcount int
+}
+type KeyValueList struct {
+	Api       string
+	Namespace string
+	System    bool
+	Items     []KeyValue
+}
+type KeyValue struct {
+	Id       int
+	Key      string
+	Value    string
+	Lines    int
+	ReadOnly bool
 }
 
-type KeyValue struct {
-	Id    int
-	Key   string
-	Value string
-	Lines int
+type NamespaceKeyValueList struct {
+	Api   string
+	Items []NamespaceKeyValue
+}
+type NamespaceKeyValue struct {
+	Id     int
+	Name   string
+	Size   int
+	Access bool
 }
 
 func (App *Application) HealthActuator(w http.ResponseWriter, r *http.Request) {
+	logger := App.Logger.With(slog.Any("id", RandomID())).With(slog.Any("function", "HealthActuator")).With(slog.Any("struct", "Application")).With(slog.Any("remoteAddr", r.RemoteAddr)).With(slog.Any("method", r.Method))
 	if App.Config.Prometheus.Enabled {
 		requests.WithLabelValues(r.URL.EscapedPath(), r.Method, "").Inc()
 	}
@@ -30,60 +53,170 @@ func (App *Application) HealthActuator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var reply Health
-	if App.KVDBClient.GetHealth() {
+	if App.KVDBClient.GetHealth(logger) != nil {
 		reply.Status = "UP"
-		log.Printf("I %v %v %v", r.Method, r.URL.Path, http.StatusOK)
+		logger.Info("health", "status", http.StatusOK)
 	} else {
 		reply.Status = "DOWN"
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("I %v %v %v", r.Method, r.URL.Path, http.StatusInternalServerError)
+		logger.Info("health", "status", http.StatusInternalServerError)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(reply)
-	return
+}
+
+func (App *Application) setupLogging() {
+	logLevel := strings.ToLower(App.Config.Logging.Level)
+	logFormat := strings.ToLower(App.Config.Logging.Format)
+	loggingLevel := new(slog.LevelVar)
+	switch logLevel {
+	case "debug":
+		loggingLevel.Set(slog.LevelDebug)
+	case "warn":
+		loggingLevel.Set(slog.LevelWarn)
+	case "error":
+		loggingLevel.Set(slog.LevelError)
+	default:
+		loggingLevel.Set(slog.LevelInfo)
+	}
+	switch logFormat {
+	case "json":
+		App.Logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: loggingLevel}))
+	default:
+		App.Logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: loggingLevel}))
+	}
+	App.Logger.Info("Logging started with options", "format", App.Config.Logging.Format, "level", App.Config.Logging.Level, "function", "setupLogging")
+	slog.SetDefault(App.Logger)
 }
 
 func (App *Application) RootController(w http.ResponseWriter, r *http.Request) {
-	statuscode := http.StatusOK
-	if r.Method == "POST" {
-		err := r.ParseForm()
-		if err != nil {
-			if App.Config.Debug {
-				log.Printf("ParseForm: %v, %t\n", err, err)
-			}
-			App.BadRequestHandler().ServeHTTP(w, r)
-		}
-		function := r.PostFormValue("input")
-		requests.WithLabelValues(r.URL.EscapedPath(), r.Method, function).Inc()
-		pair := rest.KVPairV1{Key: r.PostFormValue("key"),
-			Value: r.PostFormValue("value")}
-		var ok bool
-		switch function {
-		case "Create", "Update":
-			ok = App.KVDBClient.Set(pair)
-		case "Generate":
-			ok = App.KVDBClient.Generate(pair.Key)
-		case "Roll":
-			ok = App.KVDBClient.Roll(pair.Key)
-		case "Delete":
-			ok = App.KVDBClient.Delete(pair.Key)
-		default:
-			log.Printf("I RootController Unknown value %v", function)
-
-		}
-		if !ok {
-			statuscode = http.StatusBadRequest
-		}
-		log.Printf("I %v %v %v %+v", r.Method, r.URL.Path, statuscode, r.PostForm)
-	} else {
-		requests.WithLabelValues(r.URL.EscapedPath(), r.Method, "").Inc()
-		log.Printf("I %v %v %v", r.Method, r.URL.Path, statuscode)
+	request := GetRequestParameters(r)
+	logger := App.Logger.With(slog.Any("id", request.ID)).With(slog.Any("remoteAddr", r.RemoteAddr)).With(slog.Any("method", r.Method), "path", r.URL.EscapedPath())
+	logger.Debug("Root Request", "function", "HealthActuator", "struct", "Application")
+	if request.Api == "" {
+		http.Redirect(w, r, "/v1", http.StatusSeeOther)
+		return
 	}
-	kvlist := App.KVDBClient.GetList()
-	KeyValueList := App.convertList(kvlist)
+	if request.Api == "v1" {
+		if request.Namespace != "" {
+			App.KeysController(w, request)
+			return
+		} else {
+			App.NamespaceController(w, request)
+			return
+		}
+	}
+	logger.Info("PathNotFound", "status", http.StatusNotFound)
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte(fmt.Sprintf("%v Not Found", http.StatusNotFound)))
+}
+
+func (App *Application) NamespaceController(w http.ResponseWriter, request *RequestParameters) {
+	logger := App.Logger.With(slog.Any("id", request.ID)).With(slog.Any("remoteAddr", request.orgRequest.RemoteAddr)).With(slog.Any("method", request.Method), "path", request.Path)
+	debugLogger := logger.With(slog.Any("function", "NamespaceController")).With(slog.Any("struct", "Application"))
+	debugLogger.Debug("Namespace Request")
+	statuscode := http.StatusOK
+	if request.Method == "POST" {
+		err := request.orgRequest.ParseForm()
+		if err != nil {
+			debugLogger.Debug("ParseForm Error", "type", fmt.Sprintf("%t", err), "error", err)
+			App.BadRequestHandler(logger, w, request)
+			return
+		} else {
+			debugLogger.Debug("ParseForm", "values", request.orgRequest.PostForm)
+		}
+		function := request.orgRequest.PostFormValue("input")
+		requests.WithLabelValues(request.Path, request.Method, function).Inc()
+		namespaceName := request.orgRequest.PostFormValue("name")
+		switch function {
+		case "Create":
+			err = App.KVDBClient.CreateNamespace(logger, namespaceName)
+		default:
+			debugLogger.Debug("Unknown post", "function", function)
+		}
+		if err != nil {
+			debugLogger.Debug("Post Function Error", "type", fmt.Sprintf("%t", err), "error", err)
+			App.BadRequestHandler(logger, w, request)
+			return
+		}
+		logger.Info("Namespace request", "status", statuscode)
+	} else {
+		requests.WithLabelValues(request.Path, request.Method, "").Inc()
+		logger.Info("Namespace request", "status", statuscode)
+	}
+	kvlist, err := App.KVDBClient.GetNamespaceList(logger)
+	if err != nil {
+		debugLogger.Debug("GetNamespaceList Error", "type", fmt.Sprintf("%t", err), "error", err)
+		App.BadRequestHandler(logger, w, request)
+		return
+	}
+	KeyValueList := App.convertNamespaceList(request.Api, kvlist)
 	w.WriteHeader(statuscode)
 	// https://pkg.go.dev/html/template
-	tmpl := template.Must(template.ParseFiles("index.html"))
+	tmpl := template.Must(template.ParseFiles("namespacesindex.html"))
+	tmpl.Execute(w, KeyValueList)
+}
+
+func (App *Application) KeysController(w http.ResponseWriter, request *RequestParameters) {
+	logger := App.Logger.With(slog.Any("id", request.ID)).With(slog.Any("remoteAddr", request.orgRequest.RemoteAddr)).With(slog.Any("method", request.Method), "path", request.Path)
+	debugLogger := logger.With(slog.Any("function", "KeysController")).With(slog.Any("struct", "Application"))
+	debugLogger.Debug("Keys Request")
+	statuscode := http.StatusOK
+	if request.Method == "POST" {
+		err := request.orgRequest.ParseForm()
+		if err != nil {
+			debugLogger.Debug("ParseForm Error", "type", fmt.Sprintf("%t", err), "error", err)
+			App.BadRequestHandler(logger, w, request)
+			return
+		} else {
+			debugLogger.Debug("ParseForm", "values", request.orgRequest.PostForm)
+		}
+		function := request.orgRequest.PostFormValue("input")
+		namespace := request.orgRequest.PostFormValue("namespace")
+		requests.WithLabelValues(request.Path, request.Method, function).Inc()
+		key := request.orgRequest.PostFormValue("key")
+		value := request.orgRequest.PostFormValue("value")
+
+		switch function {
+		case "Create", "Update":
+			err = App.KVDBClient.SetKey(logger, request.Namespace, key, value)
+		case "Generate":
+			err = App.KVDBClient.Generate(logger, request.Namespace, key)
+		case "Roll":
+			err = App.KVDBClient.Roll(logger, request.Namespace, key)
+		case "Delete":
+			if namespace != "" {
+				err = App.KVDBClient.DeleteNamespace(logger, request.Namespace)
+				http.Redirect(w, request.orgRequest, "/v1", http.StatusSeeOther)
+				return
+			} else {
+				err = App.KVDBClient.DeleteKey(logger, request.Namespace, key)
+			}
+		default:
+			debugLogger.Debug("Unknown post", "function", function)
+		}
+		if err != nil {
+			debugLogger.Debug("Post Function Error", "type", fmt.Sprintf("%t", err), "error", err)
+			App.BadRequestHandler(logger, w, request)
+			return
+		}
+		logger.Info("Keys request", "status", statuscode)
+	} else {
+		requests.WithLabelValues(request.Path, request.Method, "").Inc()
+		logger.Info("Keys request", "status", statuscode)
+	}
+	kvlist, err := App.KVDBClient.GetKeyList(logger, request.Namespace)
+	if err != nil {
+		debugLogger.Debug("GetKeyList Error", "type", fmt.Sprintf("%t", err), "error", err)
+		App.BadRequestHandler(logger, w, request)
+		return
+	}
+	KeyValueList := App.convertKeyList(request.Api, request.Namespace, kvlist)
+	w.WriteHeader(statuscode)
+	// https://pkg.go.dev/html/template
+	tmpl := template.Must(template.ParseFiles("keysindex.html"))
 	tmpl.Execute(w, KeyValueList)
 }
 
@@ -97,20 +230,27 @@ func (App *Application) countRune(s string, r rune) int {
 	return count
 }
 
-func (App *Application) convertList(list []rest.KVPairV1) []KeyValue {
-	var KeyValueList []KeyValue
+func (App *Application) convertKeyList(api string, namespace string, list []rest.KVPairV2) KeyValueList {
+	systemNS := namespace == "kvdb"
+	kvList := KeyValueList{Api: api, Namespace: namespace}
 	for i, pair := range list {
-		KeyValueList = append(KeyValueList, KeyValue{Id: i, Key: pair.Key, Value: pair.Value, Lines: App.countRune(pair.Value, '\n')})
+		readOnly := systemNS && pair.Key == "counter"
+		kvList.Items = append(kvList.Items, KeyValue{Id: i, Key: pair.Key, Value: pair.Value, Lines: App.countRune(pair.Value, '\n'), ReadOnly: readOnly})
 	}
-	return KeyValueList
+	return kvList
 }
 
-func (App *Application) BadRequestHandler() http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%v %v %v", r.Method, r.URL.Path, http.StatusBadRequest)
-		w.Header().Set("Content-Type", "text/html")
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("400 Bad Request"))
-		return
-	})
+func (App *Application) convertNamespaceList(api string, list []rest.NamespaceV2) NamespaceKeyValueList {
+	namespaceKeyValueList := NamespaceKeyValueList{Api: api}
+	for i, pair := range list {
+		namespaceKeyValueList.Items = append(namespaceKeyValueList.Items, NamespaceKeyValue{Id: i, Name: pair.Name, Size: pair.Size, Access: pair.Access})
+	}
+	return namespaceKeyValueList
+}
+
+func (App *Application) BadRequestHandler(logger *slog.Logger, w http.ResponseWriter, request *RequestParameters) {
+	logger.Info("Bad Request", "status", 400)
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusBadRequest)
+	w.Write([]byte("400 Bad Request"))
 }
