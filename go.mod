@@ -3,9 +3,9 @@ module github.com/SimonStiil/keyvaluedatabaseweb
 go 1.21.6
 
 require (
-	github.com/SimonStiil/keyvaluedatabase v1.0.0
-	github.com/prometheus/client_golang v1.19.0
-	github.com/spf13/viper v1.18.2
+	github.com/SimonStiil/keyvaluedatabase v1.0.1
+	github.com/prometheus/client_golang v1.19.1
+	github.com/spf13/viper v1.19.0
 )
 
 require (
@@ -18,7 +18,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/pelletier/go-toml/v2 v2.2.1 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.53.0 // indirect
 	github.com/prometheus/procfs v0.14.0 // indirect
