@@ -4,7 +4,7 @@ go 1.21.6
 
 require (
 	github.com/SimonStiil/keyvaluedatabase v1.0.2
-	github.com/prometheus/client_golang v1.21.1
+	github.com/prometheus/client_golang v1.22.0
 	github.com/spf13/viper v1.20.1
 )
 
