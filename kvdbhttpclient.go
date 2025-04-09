@@ -120,7 +120,7 @@ func (c *Client) SetKey(logger *slog.Logger, namespace string, key string, value
 	obj := rest.ObjectV1{Type: rest.TypeKey, Value: value}
 	marshalled, err := json.Marshal(obj)
 	if err != nil {
-		logger.Error("Impossible to marshall pair: %s", err)
+		logger.Error(fmt.Sprintf("Impossible to marshall pair: %s", err))
 		return err
 	}
 	req, _ := http.NewRequest("POST", fmt.Sprintf("%v://%v:%v/v1/%v/%v", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port, namespace, key), bytes.NewReader(marshalled))
@@ -152,7 +152,7 @@ func (c *Client) CreateNamespace(logger *slog.Logger, namespace string) error {
 	obj := rest.ObjectV1{Value: namespace}
 	marshalled, err := json.Marshal(obj)
 	if err != nil {
-		logger.Error("impossible to marshall pair: %s", err)
+		logger.Error(fmt.Sprintf("impossible to marshall pair: %s", err))
 		return err
 	}
 	req, _ := http.NewRequest("POST", fmt.Sprintf("%v://%v:%v/v1", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port), bytes.NewReader(marshalled))
@@ -234,7 +234,7 @@ func (c *Client) Roll(logger *slog.Logger, namespace string, key string) error {
 	obj := rest.ObjectV1{Type: rest.TypeRoll}
 	marshalled, err := json.Marshal(obj)
 	if err != nil {
-		logger.Error("Impossible to marshall pair: %s", err)
+		logger.Error(fmt.Sprintf("Impossible to marshall pair: %s", err))
 		return err
 	}
 	req, _ := http.NewRequest("UPDATE", fmt.Sprintf("%v://%v:%v/v1/%v/%v", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port, namespace, key), bytes.NewReader(marshalled))
@@ -271,7 +271,7 @@ func (c *Client) Generate(logger *slog.Logger, namespace string, key string) err
 	obj := rest.ObjectV1{Type: rest.TypeGenerate}
 	marshalled, err := json.Marshal(obj)
 	if err != nil {
-		logger.Error("Impossible to marshall pair: %s", err)
+		logger.Error(fmt.Sprintf("Impossible to marshall pair: %s", err))
 		return err
 	}
 	req, _ := http.NewRequest("UPDATE", fmt.Sprintf("%v://%v:%v/v1/%v/%v", c.BackendConfig.Protocol, c.BackendConfig.Host, c.BackendConfig.Port, namespace, key), bytes.NewReader(marshalled))
