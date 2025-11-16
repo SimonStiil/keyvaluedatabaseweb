@@ -19,7 +19,7 @@ podTemplate(yaml: '''
         - name: certs
           mountPath: /certs/client
       - name: golang
-        image: golang:1.23.4-alpine3.19
+        image: golang:1.25.4-alpine # renovate
         command:
         - sleep
         args: 
