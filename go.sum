@@ -44,6 +44,8 @@ github.com/SimonStiil/keyvaluedatabase v1.0.0 h1:+zWarGHbzkdRuBNWKw+i4QfL0t147jp
 github.com/SimonStiil/keyvaluedatabase v1.0.0/go.mod h1:YUdd4PR4Q6oUb6vaIjcy+xUKX/v2QNN4rJLnT64/+1M=
 github.com/SimonStiil/keyvaluedatabase v1.0.2 h1:4Y4a+KmHxo6CtxQFufwx3dEw8GnJa3SkwkSzm/RwizY=
 github.com/SimonStiil/keyvaluedatabase v1.0.2/go.mod h1:G9grBL26PE18bIw8g2u7wLwu3uP90FTC0IAl8UjXhKw=
+github.com/SimonStiil/keyvaluedatabase v1.0.3 h1:TcJcvO6FV95YdFfaqHBdVqA6kSXvvsWxMbAF5o7ItUA=
+github.com/SimonStiil/keyvaluedatabase v1.0.3/go.mod h1:WguEMbxXRsU3mt7SB6YVHzIyejbJx5SL+HiMaliyqHM=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
@@ -368,6 +370,7 @@ golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f h1:99ci1mjWVBWwJiEKYY6jWa4d2
 golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f/go.mod h1:/lliqkxwWAhPjf5oSOIJup2XcqJaw8RGS6k3TGEc7GI=
 golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 h1:2dVuKD2vS7b0QIHQbpyTISPd0LeHDbnYEryqj5Q1ug8=
 golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56/go.mod h1:M4RDyNAINzryxdtnbRXRL/OHtkFuWGRjvuhBJpk2IlY=
+golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6/go.mod h1:46edojNIoXTNOhySWIWdix628clX9ODXwPsQuG6hsK0=
 golang.org/x/image v0.0.0-20190227222117-0694c2d4d067/go.mod h1:kZ7UVZpmo3dzQBMxlp+ypCbDeSB+sBbTgSJuh5dn5js=
 golang.org/x/image v0.0.0-20190802002840-cff245a6509b/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
 golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=

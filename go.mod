@@ -1,11 +1,11 @@
 module github.com/SimonStiil/keyvaluedatabaseweb
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.25.4
 
 require (
-	github.com/SimonStiil/keyvaluedatabase v1.0.2
+	github.com/SimonStiil/keyvaluedatabase v1.0.3
 	github.com/prometheus/client_golang v1.23.2
 	github.com/spf13/viper v1.21.0
 )
@@ -38,7 +38,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
+	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
