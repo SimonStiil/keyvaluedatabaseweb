@@ -2,7 +2,7 @@ module github.com/SimonStiil/keyvaluedatabaseweb
 
 go 1.24.0
 
-toolchain go1.25.5
+toolchain go1.25.6
 
 require (
 	github.com/SimonStiil/keyvaluedatabase v1.0.3
